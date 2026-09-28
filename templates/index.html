@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduGenie – AI-Powered Learning Assistant</title>
+    <meta name="description" content="EduGenie is an intelligent educational companion for students and self-learners. Ask questions, simplify difficult concepts, generate interactive quizzes, summarize passages, and build learning roadmaps.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Marked.js for fast, safe markdown formatting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="app-wrapper">
+        <!-- Header / Navigation -->
+        <header class="site-header" role="banner">
+            <div class="header-container">
+                <div class="brand">
+                    <div class="logo-icon" aria-hidden="true">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <span class="brand-name">EduGenie</span>
+                        <span class="brand-badge">AI Assistant</span>
+                    </div>
+                </div>
+
+                <div class="header-status" id="header-status">
+                    <div class="status-indicator {% if gemini_configured %}online{% else %}error{% endif %}" id="app-status-indicator" title="Gemini Model: {{ model_name }}">
+                        <span class="status-dot" id="app-status-dot"></span>
+                        <span class="status-label" id="app-status-label">{% if gemini_configured %}AI Ready{% else %}Config Error{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <main class="main-content" id="main-content" role="main">
+            <section class="hero-section">
+                <div class="hero-content">
+                    <h1 class="hero-title">Your AI-Powered <span class="gradient-text">Learning Companion</span></h1>
+                    <p class="hero-tagline">Ask academic questions, simplify complex topics, generate interactive quizzes, condense study material, and forge personalized roadmaps.</p>
+                </div>
+
+                <!-- Mode Switcher Tabs -->
+                <nav class="mode-tabs" role="tablist" aria-label="Learning Modes">
+                    <button class="mode-tab active" data-mode="ask" role="tab" aria-selected="true" id="tab-ask" aria-controls="input-panel">
+                        <span class="tab-icon">💬</span>
+                        <span class="tab-title">Ask</span>
+                    </button>
+                    <button class="mode-tab" data-mode="explain" role="tab" aria-selected="false" id="tab-explain" aria-controls="input-panel">
+                        <span class="tab-icon">💡</span>
+                        <span class="tab-title">Explain</span>
+                    </button>
+                    <button class="mode-tab" data-mode="quiz" role="tab" aria-selected="false" id="tab-quiz" aria-controls="input-panel">
+                        <span class="tab-icon">🎯</span>
+                        <span class="tab-title">Quiz</span>
+                    </button>
+                    <button class="mode-tab" data-mode="summarize" role="tab" aria-selected="false" id="tab-summarize" aria-controls="input-panel">
+                        <span class="tab-icon">📑</span>
+                        <span class="tab-title">Summarize</span>
+                    </button>
+                    <button class="mode-tab" data-mode="learn" role="tab" aria-selected="false" id="tab-learn" aria-controls="input-panel">
+                        <span class="tab-icon">🗺️</span>
+                        <span class="tab-title">Learn</span>
+                    </button>
+                </nav>
+
+                <!-- Main Input Dashboard Card -->
+                <div class="input-card" id="input-panel" role="tabpanel">
+                    <div class="input-header">
+                        <div class="input-title-wrapper">
+                            <h2 class="input-heading" id="input-mode-title">Ask EduGenie Anything</h2>
+                            <p class="input-subtitle" id="input-mode-subtitle">Enter any academic concept, homework question, or topic you're studying.</p>
+                        </div>
+
+                        <!-- Secondary Controls (Quiz sub-mode & Learn level selector) -->
+                        <div class="aux-controls" id="aux-controls">
+                            <!-- Injected dynamically per mode if needed -->
+                        </div>
+                    </div>
+
+                    <!-- Input Form -->
+                    <form id="learning-form" onsubmit="event.preventDefault(); handleFormSubmit();">
+                        <div class="textarea-wrapper">
+                            <textarea 
+                                id="user-input" 
+                                name="userInput"
+                                class="interactive-textarea" 
+                                placeholder="Ask anything you're learning..."
+                                rows="3"
+                                required
+                                aria-label="Input learning query or text"
+                            ></textarea>
+                            <div class="textarea-footer">
+                                <div class="char-counter" id="char-counter">0 / 1000</div>
+                                <button type="button" class="btn-clear" id="btn-clear-input" title="Clear input text" aria-label="Clear input">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Inspiration Chips -->
+                        <div class="quick-chips-wrapper">
+                            <span class="chips-label">Try asking:</span>
+                            <div class="chips-list" id="chips-list">
+                                <!-- Chips dynamically populated based on active mode -->
+                            </div>
+                        </div>
+
+                        <!-- Action Controls -->
+                        <div class="form-actions">
+                            <span class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to submit</span>
+                            <button type="submit" class="btn-submit" id="btn-submit">
+                                <span class="btn-text" id="btn-submit-text">Ask EduGenie</span>
+                                <span class="btn-icon">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Loading Indicator View -->
+            <section class="loading-state hidden" id="loading-state" aria-live="polite">
+                <div class="loading-card">
+                    <div class="genie-orb">
+                        <div class="orb-ring"></div>
+                        <div class="orb-core">✨</div>
+                    </div>
+                    <h3 class="loading-title" id="loading-title">EduGenie is thinking...</h3>
+                    <p class="loading-desc" id="loading-desc">Formulating pedagogical breakdown and synthesizing knowledge.</p>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error State View -->
+            <section class="error-state hidden" id="error-state" role="alert">
+                <div class="error-card">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-content">
+                        <h3 class="error-title" id="error-title">Unable to complete request</h3>
+                        <p class="error-message" id="error-message">Something went wrong while connecting to the AI service.</p>
+                        <div class="error-actions">
+                            <button type="button" class="btn-retry" id="btn-retry">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                Retry
+                            </button>
+                            <button type="button" class="btn-dismiss" id="btn-dismiss-error">Dismiss</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Output / Results View -->
+            <section class="results-section hidden" id="results-section" aria-live="polite">
+                <div class="results-card">
+                    <div class="results-header">
+                        <div class="results-badge" id="results-badge">
+                            <span class="badge-icon" id="results-badge-icon">💬</span>
+                            <span class="badge-text" id="results-badge-text">Answer</span>
+                        </div>
+                        <div class="results-actions">
+                            <button type="button" class="action-btn" id="btn-copy-result" title="Copy response to clipboard" aria-label="Copy response">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <span class="copy-text">Copy</span>
+                            </button>
+                            <button type="button" class="action-btn" id="btn-new-query" title="Start a new query" aria-label="New Query">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                New Query
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Render Container -->
+                    <div class="results-body" id="results-body">
+                        <!-- Content rendered here based on active mode -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Showcase Section -->
+            <section class="features-section" aria-label="EduGenie Capabilities">
+                <div class="section-header">
+                    <h2 class="section-title">Designed for Accelerated Learning</h2>
+                    <p class="section-subtitle">Five specialized AI modules crafted specifically for student comprehension and retention.</p>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card" onclick="setMode('ask')">
+                        <div class="feature-icon-box ask-bg">💬</div>
+                        <h3 class="feature-name">Ask Anything</h3>
+                        <p class="feature-desc">Get clear, concise academic answers with definitions, examples, and terminology broken down.</p>
+                        <span class="feature-link">Explore Q&A &rarr;</span>
+                    </div>
+
+                    <div class="feature-card" onclick="setMode('explain')">
+                        <div class="feature-icon-box explain-bg">💡</div>
+                        <h3 class="feature-name">Understand Concepts</h3>
+                        <p class="feature-desc">Demystify challenging topics with simple definitions, step-by-step mechanics, analogies, and recaps.</p>
+                        <span class="feature-link">Simplify Concepts &rarr;</span>
+                    </div>
+
+                    <div class="feature-card" onclick="setMode('quiz')">
+                        <div class="feature-icon-box quiz-bg">🎯</div>
+                        <h3 class="feature-name">Generate Quizzes</h3>
+                        <p class="feature-desc">Turn any subject or text into an interactive 3-question quiz with instant feedback and explanations.</p>
+                        <span class="feature-link">Test Yourself &rarr;</span>
+                    </div>
+
+                    <div class="feature-card" onclick="setMode('summarize')">
+                        <div class="feature-icon-box summarize-bg">📑</div>
+                        <h3 class="feature-name">Summarize Content</h3>
+                        <p class="feature-desc">Extract core takeaways, bullet points, and key terms from long educational articles while eliminating fluff.</p>
+                        <span class="feature-link">Condense Notes &rarr;</span>
+                    </div>
+
+                    <div class="feature-card" onclick="setMode('learn')">
+                        <div class="feature-icon-box learn-bg">🗺️</div>
+                        <h3 class="feature-name">Learning Paths</h3>
+                        <p class="feature-desc">Receive structured Beginner to Advanced roadmaps with practice milestones and verified resources.</p>
+                        <span class="feature-link">Build Roadmap &rarr;</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="site-footer" role="contentinfo">
+            <div class="footer-container">
+                <div class="footer-brand">
+                    <span class="footer-logo">EduGenie</span>
+                    <p class="footer-desc">AI-Powered Educational Assistant &bull; Built with FastAPI &amp; Google Gemini</p>
+                </div>
+                <div class="footer-meta">
+                    <span class="privacy-note">Privacy First: Secret keys kept securely on server.</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Application Logic Script -->
+    <script src="/static/script.js"></script>
+</body>
+</html>
